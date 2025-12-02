@@ -53,7 +53,7 @@ class CrowdDensity(data.Dataset):
         keypoint_list = []
         mask_list = []
         if self.method == 'train' and 'venice' not in self.root_path:
-            total_frames = len(self.im_list)  # 1272
+            total_frames = len(self.im_list)  
             max_index = total_frames - 1
             width, height = Image.open(self.im_list[0]).convert('RGB').size
             new_width = self.crop_width
@@ -73,7 +73,7 @@ class CrowdDensity(data.Dataset):
                 mask = np.ones((new_height // 32 * 4, new_width // 32 * 4), dtype=int)
             k_start = item
             k_end = item + self.diff_number
-            if k_end > max_index + 1:  # 因为range是左闭右开，k_end需要 <= max_index + 1
+            if k_end > max_index + 1:  
                 k_start = max_index - self.diff_number + 1  # 1271 - 4 + 1 = 1268
                 k_end = k_start + self.diff_number
 
@@ -91,7 +91,7 @@ class CrowdDensity(data.Dataset):
                     if rate > 0.5:
                         next_frame = next_frame.transpose(Image.FLIP_LEFT_RIGHT)
                     diff = np.abs(np.log(np.array(cur_frame) + np_ones) - np.log(np.array(next_frame) + np_ones))
-                    diff_tensor = torch.from_numpy(diff).permute(2, 0, 1).float()  # 假设是图像格式(H,W,C)
+                    diff_tensor = torch.from_numpy(diff).permute(2, 0, 1).float()  
                     diff_list.append(diff_tensor)
 
             for q in range(item, item + self.frame_number):
@@ -135,7 +135,7 @@ class CrowdDensity(data.Dataset):
             rate = random.random()
             k_start = item
             k_end = item + self.diff_number
-            if k_end > max_index + 1:  # 因为range是左闭右开，k_end需要 <= max_index + 1
+            if k_end > max_index + 1:  
                 k_start = max_index - self.diff_number + 1  # 1271 - 4 + 1 = 1268
                 k_end = k_start + self.diff_number
 
@@ -153,7 +153,7 @@ class CrowdDensity(data.Dataset):
                     if rate > 0.5:
                         next_frame = next_frame.transpose(Image.FLIP_LEFT_RIGHT)
                     diff = np.abs(np.log(np.array(cur_frame) + np_ones) - np.log(np.array(next_frame) + np_ones))
-                    diff_tensor = torch.from_numpy(diff).permute(2, 0, 1).float()  # 假设是图像格式(H,W,C)
+                    diff_tensor = torch.from_numpy(diff).permute(2, 0, 1).float()  
                     diff_list.append(diff_tensor)
 
             for q in range(item, item + self.frame_number):
@@ -195,42 +195,27 @@ class CrowdDensity(data.Dataset):
             if item + self.frame_number > len(self.im_list):
                 item = len(self.im_list) - self.frame_number
 
-            step = self.frame_number  # k的步长与q保持一致（确保样本对齐）
-            max_group_start = len(self.im_list) - self.diff_number # 最后一组的起始帧（确保4帧）
-            # 根据item计算k的起始帧（与q_start对齐）
+            step = self.frame_number  
+            max_group_start = len(self.im_list) - self.diff_number 
             k_start = min(item, max_group_start)
-            k_end = k_start + self.diff_number  # 每组4帧（如0-4→0,1,2,3）
+            k_end = k_start + self.diff_number  
 
             for k in range(k_start, k_end -1):
-                # 加载当前帧（无裁剪，直接使用原始图像）
                 cur_path = self.im_list[k]
-                cur_frame = Image.open(cur_path).convert('RGB')  # val模式不裁剪
+                cur_frame = Image.open(cur_path).convert('RGB')  
                 if 'class' in self.root_path:
-                    # resize参数为(width, height)，这里设置为(1280, 704)
                     cur_frame = cur_frame.resize((1280, 704))
-                # cur_frame = self.trans(cur_frame)
-                # cur_frame = F.interpolate(cur_frame, size=(512, 512), mode='bilinear', align_corners=False)
                 np_ones = np.ones_like(cur_frame).astype('float32')
-                # 计算当前帧与下一帧的差异（无翻转，保持原始顺序）
-                if k < len(self.im_list) - 1:  # 确保k+1不越界
+                if k < len(self.im_list) - 1:  
                     next_path = self.im_list[k + 1]
-                    next_frame = Image.open(next_path).convert('RGB')  # val模式不裁剪
+                    next_frame = Image.open(next_path).convert('RGB') 
                     if 'class' in self.root_path:
                         next_frame = next_frame.resize((1280, 704))
                     # next_frame = self.trans(next_frame)
                     # next_frame = F.interpolate(next_frame, size=(512, 512), mode='bilinear', align_corners=False)
 
-                    diff = np.abs(np.log(np.array(cur_frame) + np_ones) - np.log(np.array(next_frame) + np_ones))  # 现在是3维：[C, H, W]
+                    diff = np.abs(np.log(np.array(cur_frame) + np_ones) - np.log(np.array(next_frame) + np_ones))  
 
-
-                    # 2. Resize 到 512×512（使用双线性插值，适合连续值）
-                    # diff_resized_hwc = cv2.resize(
-                    #     diff,
-                    #     dsize=(512,512),
-                    #     interpolation=cv2.INTER_LINEAR  # 双线性插值，适合平滑过渡
-                    # )
-
-                    # 3. 恢复通道顺序为 [C, 512, 512]
                     diff = diff.transpose(2, 0, 1)
 
                     diff = torch.from_numpy(diff).float()
@@ -243,7 +228,6 @@ class CrowdDensity(data.Dataset):
                     img = img.resize((1280, 704))
                 img = self.trans(img)
 
-                # img = F.interpolate(img, size=(512, 512), mode='bilinear', align_corners=False)
                 img_list.append(img)
 
                 h5_path = img_path.replace('jpg', 'h5')
@@ -265,34 +249,25 @@ class CrowdDensity(data.Dataset):
                 item = len(self.im_list) - self.frame_number
             max_group_start = len(self.im_list) - self.diff_number
             k_start = min(item, max_group_start)
-            k_end = k_start + self.diff_number  # 每组4帧（如0-4→0,1,2,3）
+            k_end = k_start + self.diff_number 
             for k in range(k_start, k_end -1):
-                # 加载当前帧（无裁剪，直接使用原始图像）
                 cur_path = self.im_list[k]
-                cur_frame = Image.open(cur_path).convert('RGB')  # val模式不裁剪
+                cur_frame = Image.open(cur_path).convert('RGB')  
                 if 'class' in self.root_path:
-                    # resize参数为(width, height)，这里设置为(1280, 704)
                     cur_frame = cur_frame.resize((1280, 704))
                 # cur_frame = self.trans(cur_frame)
                 # cur_frame = F.interpolate(cur_frame, size=(512, 512), mode='bilinear', align_corners=False)
                 np_ones = np.ones_like(cur_frame).astype('float32')
-                # 计算当前帧与下一帧的差异（无翻转，保持原始顺序）
-                if k < len(self.im_list) - 1:  # 确保k+1不越界
+                if k < len(self.im_list) - 1:  
                     next_path = self.im_list[k + 1]
-                    next_frame = Image.open(next_path).convert('RGB')  # val模式不裁剪
+                    next_frame = Image.open(next_path).convert('RGB') 
                     if 'class' in self.root_path:
                         next_frame = next_frame.resize((1280, 704))
                     # next_frame = self.trans(next_frame)
                     # next_frame = F.interpolate(next_frame, size=(512, 512), mode='bilinear', align_corners=False)
 
-                    diff = np.abs(np.log(np.array(cur_frame) + np_ones) - np.log(np.array(next_frame) + np_ones))  # 现在是3维：[C, H, W]
-                    # 2. Resize 到 512×512（使用双线性插值，适合连续值）
-                    # diff_resized_hwc = cv2.resize(
-                    #     diff,
-                    #     dsize=(512,512),
-                    #     interpolation=cv2.INTER_LINEAR  # 双线性插值，适合平滑过渡
-                    # )
-                    # 3. 恢复通道顺序为 [C, 512, 512]
+                    diff = np.abs(np.log(np.array(cur_frame) + np_ones) - np.log(np.array(next_frame) + np_ones)) 
+   
                     diff = diff.transpose(2, 0, 1)
                     diff = torch.from_numpy(diff).float()
                     diff_list.append(diff)
@@ -319,22 +294,4 @@ class CrowdDensity(data.Dataset):
 
             return torch.stack(img_list, dim=0), torch.tensor(keypoint_list), torch.stack(mask_list, dim=0),torch.stack(diff_list, dim=0)
 
-
-
-mall_root = "C:\\File\\mall\\train"
-crowd = CrowdDensity(mall_root,method='train',crop_height=384,crop_width=384,frame_number=4)
-# print(len(crowd))
-img,target,keypoint,mask,diff = crowd[0]
-print(img.shape)
-print(target.shape)
-print(diff.shape)
-print(mask.shape)
-print(keypoint)
-# mall_root = "C:\\File\\class\\val"
-# crowd_val = CrowdDensity(mall_root,method='val',diff_number=4,crop_height=512,crop_width=512,frame_number=4)
-# print(len(crowd_val))
-# img , keypoint , diff = crowd_val[15]
-# print(img.shape)
-# print(keypoint)
-# print(diff.shape)
 
