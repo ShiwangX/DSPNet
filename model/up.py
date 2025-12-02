@@ -70,18 +70,9 @@ class PixelShuffleUpsampleLayer(BaseModule):
     def __init__(self, input_chans=768):
         super().__init__()
         self.integrated_layer = nn.Sequential(
-            # 第一次上采样：2倍放大（从C=768→192）
             LayerNorm(input_chans, eps=1e-6, data_format='channels_first'),
-            # 像素洗牌要求：输入通道数 = 输出通道数 × (放大倍数)²
-            # 768 = 192 × (2)² → 满足条件，直接使用PixelShuffle
-            nn.PixelShuffle(upscale_factor=2),  # 输出尺寸变为2倍，通道数变为768/(2²)=192
+            nn.PixelShuffle(upscale_factor=2), 
             nn.GELU(),
-            #
-            # # 第二次上采样：再2倍放大（从C=192→48）
-            # LayerNorm(192, eps=1e-6, data_format='channels_first'),
-            # # 192 = 48 × (2)² → 满足条件
-            # nn.PixelShuffle(upscale_factor=2),  # 输出尺寸再变为2倍，通道数变为192/(2²)=48
-            # nn.GELU(),
         )
     def forward(self, x):
         return self.integrated_layer(x)
@@ -109,4 +100,5 @@ class UpsampleModule(BaseModule):
         self.apply(self.init_weights)
 
     def forward(self, x):
+
         return self.integrated_layer(x)
