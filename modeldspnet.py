@@ -47,21 +47,3 @@ class FusionNet(nn.Module):
 
         return x
 
-
-
-
-if __name__ == '__main__':
-    model = FusionNet(is_extrapolation=True,is_train=False).cuda()
-
-    # # 计算总参数量（可训练参数）
-    # total_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
-    # # 转换为“百万（M）”单位（除以 1e6），保留 3 位小数
-    # total_params_m = total_params / 1e6
-    #
-    # print(f"总参数量：{total_params}（个）")
-    # print(f"总参数量：{total_params_m:.3f} M")  # 表格中常用的单位格式
-    x = torch.randn(3, 3, 640, 360).to(torch.device('cuda:0'))
-    diff = torch.randn(3, 3, 640, 360).to(torch.device('cuda:0'))
-    # print(model)
-    out = model(x,diff)
-    print(out.shape)
