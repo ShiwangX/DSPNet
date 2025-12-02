@@ -30,68 +30,6 @@ def parse_args():
     args = parser.parse_args()
     return args
 
-
-def visualize_and_save(model, diff_tensor, batch_idx, save_dir):
-    """
-    保存可视化结果到文件夹，使用更美观的配色。
-    """
-    # 1. 确保目录存在
-    os.makedirs(save_dir, exist_ok=True)
-
-    # 2. 推理获取 Mask
-    model.eval()
-    with torch.no_grad():
-        # 获取原始 mask
-        raw_mask_up,raw_mask_down = model.mask_down(diff_tensor)  # (B, 1, H/8, W/8)
-
-        # 数学运算
-        # mask_up (0~1) -> 1+mask_up (1.0~2.0)
-        vis_up = raw_mask_up
-        # mask_down (0或1) -> 2-mask_down (若原为1则得1，若原为0则得2)
-        vis_down = 2 - raw_mask_down
-
-        # 3. 数据转换 (取 Batch 中的第 0 帧)
-    # 假设 diff_tensor 是 (B, C, H, W)，取第一张图的均值通道用于显示轮廓
-    img_input = diff_tensor[0].mean(dim=0).detach().cpu().numpy()
-
-    # Mask 转换
-    img_up = vis_up[0, 0].detach().cpu().numpy()
-    img_down = vis_down[0, 0].detach().cpu().numpy()
-
-    # 4. 绘图配置
-    fig, axes = plt.subplots(1, 3, figsize=(18, 5))
-
-    # --- 图1: 输入的 Diff 图 (灰度) ---
-    axes[0].imshow(img_input, cmap='gray')
-    axes[0].set_title(f"Input Diff (Batch {batch_idx})")
-    axes[0].axis('off')
-
-    # --- 图2: 1 + Mask UP (连续值) ---
-    # 推荐配色: 'magma' (黑紫->亮黄), 'inferno' (黑红->亮黄), 或 'plasma'
-    # 这些配色更能体现"能量"或"注意力"的感觉
-    im1 = axes[1].imshow(img_up, cmap='magma', vmin=0, vmax=1)
-    axes[1].set_title("1 + Mask UP\n(Attention Heatmap)")
-    axes[1].axis('off')
-    # 添加色条
-    plt.colorbar(im1, ax=axes[1], fraction=0.046, pad=0.04)
-
-    # --- 图3: 2 - Mask DOWN (二值) ---
-    # 逻辑: 原Mask=1(运动) -> 结果=1; 原Mask=0(静止) -> 结果=2
-    # 我们希望 1 (运动) 看起来明显，2 (背景) 看起来淡化
-    # 使用 'coolwarm_r' (反转冷暖色):
-    # 这样较小的值(1.0)会显示为红色/暖色(强调)，较大的值(2.0)显示为蓝色/冷色(背景)
-    im2 = axes[2].imshow(img_down, cmap='coolwarm_r', vmin=1.0, vmax=2.0)
-    axes[2].set_title("2 - Mask DOWN\n(Red=1/Motion, Blue=2/Static)")
-    axes[2].axis('off')
-    plt.colorbar(im2, ax=axes[2], fraction=0.046, pad=0.04, ticks=[1, 2])
-
-    # 5. 保存并关闭
-    save_path = os.path.join(save_dir, f"vis_batch_{batch_idx:04d}.png")
-    plt.tight_layout()
-    plt.savefig(save_path, dpi=100, bbox_inches='tight')  # bbox_inches去除白边
-    plt.close(fig)  # 必须关闭，否则内存溢出
-
-
 if __name__ == '__main__':
     args = parse_args()
     os.environ['CUDA_VISIBLE_DEVICES'] = args.device.strip()  # set vis gpu··
@@ -100,7 +38,7 @@ if __name__ == '__main__':
     device = torch.device('cuda')
     model.to(device)
     model.eval()
-    model.load_state_dict(torch.load(os.path.join(args.save_dir, 'best_model_27.pth'), device))
+    model.load_state_dict(torch.load(os.path.join(args.save_dir, '0.pth'), device))
 
     if 'fdst' in args.data_dir or 'ucsd' in args.data_dir or 'dronecrowd' in args.data_dir:
         sum_res = []
@@ -208,12 +146,11 @@ if __name__ == '__main__':
                          frame_number=args.frame_number, roi_path=args.roi_path)
         dataloader = torch.utils.data.DataLoader(datasets, 1, shuffle=False, num_workers=8, pin_memory=False)
         epoch_res = []
-        for i, (imgs, keypoints,diffs) in enumerate(dataloader):
+        for imgs, keypoints,diffs in dataloader:
             b, f, c, h, w = imgs.shape
             assert b == 1, 'the batch size should equal to 1 in validation mode'
             imgs = imgs.to(device).squeeze(0)
             diffs = diffs.to(device).squeeze(0)
-            visualize_and_save(model, diffs, batch_idx=i, save_dir='mask')
             with torch.set_grad_enabled(False):
                 output = model(imgs,diffs)
                 if args.roi_path:
@@ -245,3 +182,4 @@ if __name__ == '__main__':
         mae = np.mean(np.abs(epoch_res))
         log_str = 'Final Test: mae {}, mse {}'.format(mae, mse)
         print(log_str)
+
