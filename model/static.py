@@ -10,21 +10,7 @@ from timm.models.vision_transformer import _cfg
 import math
 from model.up import PixelShuffleUpsampleLayer
 
-# class DWConv(nn.Module):
-#     def __init__(self, dim=768):
-#         super(DWConv, self).__init__()
-#         self.dwconv = nn.Conv2d(dim, dim, kernel_size=3, stride=1, padding=1, bias=True, groups=dim)
-#
-#     def forward(self, x, H, W):
-#         B, N, C = x.shape
-#         x = x.transpose(1, 2).view(B, C, H, W).contiguous()
-#         x = self.dwconv(x)
-#         x = x.flatten(2).transpose(1, 2)
-#
-#         return x
-
 class DWConvPlusPW(nn.Module):
-    """并联DWConv和1x1 PWConv"""
     def __init__(self, dim=768):
         super(DWConvPlusPW, self).__init__()
         self.dwconv = nn.Conv2d(dim, dim, kernel_size=3, stride=1, padding=1,
@@ -36,10 +22,10 @@ class DWConvPlusPW(nn.Module):
         B, N, C = x.shape
         x = x.transpose(1, 2).view(B, C, H, W).contiguous()
 
-        x_dw = self.dwconv(x)   # 空间建模
-        x_pw = self.pwconv(x)   # 通道交互
+        x_dw = self.dwconv(x)   
+        x_pw = self.pwconv(x)   
 
-        x = x_dw + x_pw         # 融合方式：逐元素相加（也可以 torch.cat 再做线性投影）
+        x = x_dw + x_pw         
         x = x.flatten(2).transpose(1, 2)
         return x
 
@@ -120,15 +106,14 @@ class BranchDOWN(nn.Module):
         super().__init__()
         self.out_features = out_features
 
-        # 前2个Branch_DOWN：使用embed_dims[0]作为主要维度
         self.group1 = nn.ModuleList([
             Branch_DOWN(
-                embed_dims=embed_dims[0],  # 保持输入输出维度对应
+                embed_dims=embed_dims[0],  
                 mlp_ratio=mlp_ratio,
                 act_layer=act_layer,
                 drop=drop,
                 drop_path=drop_path,
-                i=1  # 索引可用于区分不同模块
+                i=1  
             ),
             Branch_DOWN(
                 embed_dims=embed_dims[0],
@@ -140,10 +125,9 @@ class BranchDOWN(nn.Module):
             )
         ])
 
-        # 后2个Branch_DOWN：使用embed_dims[1]作为主要维度
         self.group2 = nn.ModuleList([
             Branch_DOWN(
-                embed_dims=embed_dims[1],  # 主要维度改为embed_dims[1]
+                embed_dims=embed_dims[1],  
                 mlp_ratio=mlp_ratio,
                 act_layer=act_layer,
                 drop=drop,
@@ -160,19 +144,15 @@ class BranchDOWN(nn.Module):
             )
         ])
 
-        # 可选：如果需要从embed_dims[0]过渡到embed_dims[1]，添加维度转换卷积
         self.up = PixelShuffleUpsampleLayer(input_chans=embed_dims[0])
 
     def forward(self, x, mask_down):
-        # 处理前2个Branch_DOWN（使用embed_dims[0]）
         for block in self.group1:
             x = block(x)
 
-        # 维度转换：从embed_dims[0]过渡到embed_dims[1]（如果维度不同）
         x = self.up(x)
         x = x * (2 - mask_down)
 
-        # 处理后2个Branch_DOWN（使用embed_dims[1]）
         for block in self.group2:
             x = block(x)
 
@@ -186,3 +166,4 @@ if __name__ == '__main__':
     model = BranchDOWN()
     y = model(x)
     print(y.shape)
+
