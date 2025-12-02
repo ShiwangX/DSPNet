@@ -100,7 +100,7 @@ class SPBlock(nn.Module):
         return x
 
 
-class BranchDOWN(nn.Module):
+class Down_Branch(nn.Module):
     def __init__(self, embed_dims=[192, 48], mlp_ratio=4., out_features=None,
                  act_layer=nn.GELU, drop=0., drop_path=0.):
         super().__init__()
@@ -159,5 +159,6 @@ class BranchDOWN(nn.Module):
         x = x * (2 - mask_down)
 
         return x
+
 
 
