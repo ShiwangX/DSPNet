@@ -9,7 +9,7 @@ from torch.utils.data import DataLoader
 import logging
 import numpy as np
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
-from model.dspa import FusionNet
+from model.dspnet import FusionNet
 from dataset.crowd import CrowdDensity
 from glob import glob
 import cv2
@@ -319,4 +319,5 @@ class RegTrainer(Trainer):
                     torch.save(model_state_dic, os.path.join(self.save_dir, 'best_model_{}.pth'.format(self.best_count)))
                     self.best_count += 1
                 else:
+
                     torch.save(model_state_dic, os.path.join(self.save_dir, 'best_model_{}.pth'.format(self.num)))
