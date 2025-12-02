@@ -29,7 +29,7 @@ class DWConvPlusPW(nn.Module):
         x = x.flatten(2).transpose(1, 2)
         return x
 
-class ConvolutionalGLU(nn.Module):
+class SC_GLU(nn.Module):
     def __init__(self, in_features, hidden_features=None, out_features=None, act_layer=nn.GELU, drop=0.):
         super().__init__()
         out_features = out_features or in_features
@@ -74,7 +74,7 @@ class OverlapPatchEmbed(nn.Module):
 
         return x, H, W
 
-class Branch_DOWN(nn.Module):
+class SPBlock(nn.Module):
     def __init__(self,embed_dims, mlp_ratio=4.,out_features=None, act_layer=nn.GELU, drop=0.,
                                     drop_path=0.,i=1):
         super().__init__()
@@ -84,7 +84,7 @@ class Branch_DOWN(nn.Module):
         self.patch_size = 3
         self.stride = 1
         self.mlp_hidden_dim = int(embed_dims * mlp_ratio)
-        self.mlp = ConvolutionalGLU(in_features=embed_dims, hidden_features=self.mlp_hidden_dim,act_layer=act_layer, drop=drop)
+        self.mlp = SC_GLU(in_features=embed_dims, hidden_features=self.mlp_hidden_dim,act_layer=act_layer, drop=drop)
         self.patch_embed = OverlapPatchEmbed(patch_size=self.patch_size,stride=self.stride,
                                             in_chans=embed_dims,
                                             embed_dim=embed_dims)
@@ -107,7 +107,7 @@ class BranchDOWN(nn.Module):
         self.out_features = out_features
 
         self.group1 = nn.ModuleList([
-            Branch_DOWN(
+            SPBlock(
                 embed_dims=embed_dims[0],  
                 mlp_ratio=mlp_ratio,
                 act_layer=act_layer,
@@ -115,7 +115,7 @@ class BranchDOWN(nn.Module):
                 drop_path=drop_path,
                 i=1  
             ),
-            Branch_DOWN(
+            SPBlock(
                 embed_dims=embed_dims[0],
                 mlp_ratio=mlp_ratio,
                 act_layer=act_layer,
@@ -126,7 +126,7 @@ class BranchDOWN(nn.Module):
         ])
 
         self.group2 = nn.ModuleList([
-            Branch_DOWN(
+            SPBlock(
                 embed_dims=embed_dims[1],  
                 mlp_ratio=mlp_ratio,
                 act_layer=act_layer,
@@ -134,7 +134,7 @@ class BranchDOWN(nn.Module):
                 drop_path=drop_path,
                 i=3
             ),
-            Branch_DOWN(
+            SPBlock(
                 embed_dims=embed_dims[1],
                 mlp_ratio=mlp_ratio,
                 act_layer=act_layer,
@@ -160,10 +160,4 @@ class BranchDOWN(nn.Module):
 
         return x
 
-
-if __name__ == '__main__':
-    x = torch.randn(3, 192, 32, 32)
-    model = BranchDOWN()
-    y = model(x)
-    print(y.shape)
 
